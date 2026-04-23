@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import os
 import asyncio
 from functools import lru_cache
@@ -55,26 +55,26 @@ def build_pic(av, fn, uid, un):
     bg = cached_bg().copy()
     
     # Resize and position avatar to fit the circular frame on the right
-    avatar = circle(Image.open(av), size=(500, 500))
+    avatar = circle(Image.open(av), size=(530, 530))
     # Position avatar in the circular frame (adjusted coordinates)
-    bg.paste(avatar, (1750, 250), avatar)
+    bg.paste(avatar, (1390, 260), avatar)
     
     d = ImageDraw.Draw(bg)
     
     # Use appropriate font sizes for different fields
-    name_font = cached_font(55)  # Smaller font for name
-    id_font = cached_font(50)    # Smaller font for ID
-    username_font = cached_font(48)  # Smaller font for username
+    name_font = cached_font(65)  
+    id_font = cached_font(65)    
+    username_font = cached_font(65)  
     
     # Adjusted coordinates to match the welcome.png layout
-    # Name field: starts at y=420, inside the white box
-    d.text((100, 435), fn[:30], fill=(0, 0, 0), font=name_font)  # Dark text on light background
+    # Name field
+    d.text((250, 435), fn[:30], fill=(0, 0, 0), font=name_font)  
     
-    # ID field: starts at y=620, inside the white box
-    d.text((100, 635), str(uid), fill=(0, 0, 0), font=id_font)
+    # ID field
+    d.text((250, 635), str(uid), fill=(0, 0, 0), font=id_font)
     
-    # Username field: starts at y=820, inside the white box
-    d.text((100, 835), f"@{un}" if un != "No Username" else un, fill=(0, 0, 0), font=username_font)
+    # Username field
+    d.text((360, 835), f"@{un}" if un != "No Username" else un, fill=(0, 0, 0), font=username_font)
     
     path = f"downloads/welcome_{uid}.png"
     bg.save(path)

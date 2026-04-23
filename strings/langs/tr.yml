@@ -179,7 +179,7 @@ queue_6 : "<b>🕚 Süre :</b> Bilinmeyen süreli yayın\n\nTüm kuyruk listesin
 queue_7 : "\nTüm kuyruk listesini görmek için aşağıdaki düğmeye tıklayın."
 queue_8 : "<b>{0} oynatıcı</b>\n\n🎄 <b>Yayınlanıyor :</b> {1}\n\n🔗 <b>Yayın türü :</b> {2}\n🥀 <b>İsteyen :</b> {3}\n{4}"
 
-stream_1 : "➲ <b>Yayın Başlatıldı |</b>\n\n<b>‣ Başlık :</b> <a href={0}>{1}</a>\n<b>‣ Süre :</b> {2} dakika\n<b>‣ İsteyen :</b> {3}"
+stream_1: "<blockquote>❖ sᴛᴀʀᴛᴇᴅ sᴛʀᴇᴀᴍɪɴɢ ❞</blockquote>\n\n<blockquote>❍ ᴛɪᴛʟᴇ : <a href={0}>{1}</a> ❞\n❍ ᴅᴜʀᴀᴛɪᴏɴ : {2} ᴍɪɴᴜᴛᴇs\n❍ ʙʏ : {3}</blockquote>"
 stream_2 : "➲ <b>Yayın Başlatıldı |</b>\n\n<b>‣ Yayın türü :</b> canlı yayın [URL]\n<b>‣ İsteyen :</b> {0}"
 
 S_B_1 : "˹beni kaçır güzelim˼"

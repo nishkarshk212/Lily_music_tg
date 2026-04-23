@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 """
 Enhanced Broadcast Module
 ========================
@@ -44,59 +44,115 @@ from config import adminlist
 IS_BROADCASTING = False
 
 
+def parse_broadcast_buttons(text: str):
+    """Helper to parse buttons from text in format: TEXT | Button:URL"""
+    if "|" not in text:
+        return text, None
+    
+    parts = text.split("|")
+    main_text = parts[0].strip()
+    buttons = []
+    
+    for part in parts[1:]:
+        part = part.strip()
+        if ":" in part:
+            try:
+                btn_text, url = part.split(":", 1)
+                buttons.append(InlineKeyboardButton(btn_text.strip(), url=url.strip()))
+            except:
+                continue
+    
+    if not buttons:
+        return main_text, None
+        
+    # Arrange buttons in rows of 2
+    keyboard = []
+    for i in range(0, len(buttons), 2):
+        keyboard.append(buttons[i:i+2])
+        
+    return main_text, InlineKeyboardMarkup(keyboard)
+
+
 @app.on_message(filters.command("broadcast") & SUDOERS)
 @language
 async def braodcast_message(client, message, _):
     global IS_BROADCASTING
+    
+    # Flags to handle
+    pin_flag = "-pin" in message.text
+    nobot_flag = "-nobot" in message.text
+    pinloud_flag = "-pinloud" in message.text
+    assistant_flag = "-assistant" in message.text
+    user_flag = "-user" in message.text
+    
+    reply_markup = None
+    query = ""
+    
     if message.reply_to_message:
         x = message.reply_to_message.id
         y = message.chat.id
+        # If user provided buttons in the command while replying
+        if len(message.command) > 1:
+            cmd_text = message.text.split(None, 1)[1]
+            # Remove flags from cmd_text for button parsing
+            for flag in ["-pin", "-nobot", "-pinloud", "-assistant", "-user"]:
+                cmd_text = cmd_text.replace(flag, "")
+            _, reply_markup = parse_broadcast_buttons(cmd_text)
     else:
         if len(message.command) < 2:
             return await message.reply_text(_["broad_2"])
+        
         query = message.text.split(None, 1)[1]
-        if "-pin" in query:
-            query = query.replace("-pin", "")
-        if "-nobot" in query:
-            query = query.replace("-nobot", "")
-        if "-pinloud" in query:
-            query = query.replace("-pinloud", "")
-        if "-assistant" in query:
-            query = query.replace("-assistant", "")
-        if "-user" in query:
-            query = query.replace("-user", "")
-        if query == "":
+        # Remove flags for parsing
+        clean_query = query
+        for flag in ["-pin", "-nobot", "-pinloud", "-assistant", "-user"]:
+            clean_query = clean_query.replace(flag, "")
+            
+        if clean_query.strip() == "":
             return await message.reply_text(_["broad_8"])
+            
+        query, reply_markup = parse_broadcast_buttons(clean_query)
 
     IS_BROADCASTING = True
     await message.reply_text(_["broad_1"])
 
-    if "-nobot" not in message.text:
+    if not nobot_flag:
         sent = 0
         pin = 0
-        chats = []
         schats = await get_served_chats()
+        
         for chat in schats:
-            chats.append(int(chat["chat_id"]))
-        for i in chats:
+            chat_id = int(chat["chat_id"])
             try:
-                m = (
-                    await app.forward_messages(i, y, x)
-                    if message.reply_to_message
-                    else await app.send_message(i, text=query)
-                )
-                if "-pin" in message.text:
+                if message.reply_to_message:
+                    if reply_markup:
+                        # If we have custom buttons, we must copy instead of forward
+                        m = await message.reply_to_message.copy(
+                            chat_id,
+                            reply_markup=reply_markup
+                        )
+                    else:
+                        m = await app.forward_messages(chat_id, y, x)
+                else:
+                    m = await app.send_message(
+                        chat_id, 
+                        text=query,
+                        reply_markup=reply_markup
+                    )
+                
+                if pin_flag:
                     try:
                         await m.pin(disable_notification=True)
                         pin += 1
                     except:
-                        continue
-                elif "-pinloud" in message.text:
+                        pass
+                elif pinloud_flag:
                     try:
                         await m.pin(disable_notification=False)
                         pin += 1
                     except:
-                        continue
+                        pass
+                
                 sent += 1
                 await asyncio.sleep(0.2)
             except FloodWait as fw:
@@ -106,24 +162,32 @@ async def braodcast_message(client, message, _):
                 await asyncio.sleep(flood_time)
             except:
                 continue
+                
         try:
             await message.reply_text(_["broad_3"].format(sent, pin))
         except:
             pass
 
-    if "-user" in message.text:
+    if user_flag:
         susr = 0
-        served_users = []
         susers = await get_served_users()
         for user in susers:
-            served_users.append(int(user["user_id"]))
-        for i in served_users:
+            user_id = int(user["user_id"])
             try:
-                m = (
-                    await app.forward_messages(i, y, x)
-                    if message.reply_to_message
-                    else await app.send_message(i, text=query)
-                )
+                if message.reply_to_message:
+                    if reply_markup:
+                        await message.reply_to_message.copy(
+                            user_id,
+                            reply_markup=reply_markup
+                        )
+                    else:
+                        await app.forward_messages(user_id, y, x)
+                else:
+                    await app.send_message(
+                        user_id, 
+                        text=query,
+                        reply_markup=reply_markup
+                    )
                 susr += 1
                 await asyncio.sleep(0.2)
             except FloodWait as fw:
@@ -138,7 +202,7 @@ async def braodcast_message(client, message, _):
         except:
             pass
 
-    if "-assistant" in message.text:
+    if assistant_flag:
         aw = await message.reply_text(_["broad_5"])
         text = _["broad_6"]
         from AnnieXMedia.core.userbot import assistants
@@ -148,11 +212,13 @@ async def braodcast_message(client, message, _):
             client = await get_client(num)
             async for dialog in client.get_dialogs():
                 try:
-                    await client.forward_messages(
-                        dialog.chat.id, y, x
-                    ) if message.reply_to_message else await client.send_message(
-                        dialog.chat.id, text=query
-                    )
+                    if message.reply_to_message:
+                        # Assistants don't support copy() as easily as app, 
+                        # and usually don't send inline buttons. 
+                        # We stick to forward/send for assistants.
+                        await client.forward_messages(dialog.chat.id, y, x)
+                    else:
+                        await client.send_message(dialog.chat.id, text=query)
                     sent += 1
                     await asyncio.sleep(3)
                 except FloodWait as fw:
@@ -167,6 +233,7 @@ async def braodcast_message(client, message, _):
             await aw.edit_text(text)
         except:
             pass
+            
     IS_BROADCASTING = False
 
 

@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import asyncio
 import contextlib
 import json
@@ -16,7 +16,7 @@ from AnnieXMedia.utils.cookie_handler import COOKIE_PATH
 from AnnieXMedia.utils.database import is_on_off
 from AnnieXMedia.utils.downloader import yt_dlp_download
 from AnnieXMedia.utils.errors import capture_internal_err
-from AnnieXMedia.utils.formatters import time_to_seconds
+from AnnieXMedia.utils.formatters import time_to_seconds, seconds_to_min
 from AnnieXMedia.utils.tuning import YTDLP_TIMEOUT, YOUTUBE_META_MAX, YOUTUBE_META_TTL
 from AnnieXMedia.utils.nubcoder_api import get_video_info as nubcoder_get_info, search_videos as nubcoder_search
 from config import API_KEY, API_URL, VIDEO_API_URL
@@ -29,6 +29,9 @@ _cache: Dict[str, Tuple[float, List[Dict]]] = {}
 _cache_lock = asyncio.Lock()
 _formats_cache: Dict[str, Tuple[float, List[Dict], str]] = {}
 _formats_lock = asyncio.Lock()
+_stream_cache: Dict[str, Tuple[float, str]] = {} # Cache for stream URLs
+_stream_lock = asyncio.Lock()
+STREAM_TTL = 3600 # 1 hour for stream URLs
 
 
 # === Constants ===
@@ -95,10 +98,13 @@ async def cached_youtube_search(query: str) -> List[Dict]:
                 # Only use API result if video_id is valid
                 if video.get('video_id') != 'N/A':
                     # Convert NubCoder API format to expected format
+                    duration_sec = video.get('duration', 0)
+                    duration_str = seconds_to_min(duration_sec) if duration_sec else None
+                    
                     result = [{
                         'id': video.get('video_id', ''),
                         'title': video.get('title', ''),
-                        'duration': str(video.get('duration', '')) if video.get('duration') else None,
+                        'duration': duration_str,
                         'thumbnail': video.get('thumbnail', ''),
                         'channel': {'name': video.get('channel_name', '')},
                         'views': {'short': str(video.get('views', 0))}
@@ -182,7 +188,7 @@ class YouTubeAPI:
                 if api_info and 'error' not in api_info and api_info.get('video_id') != 'N/A':
                     # Convert NubCoder API format to expected format
                     duration_sec = api_info.get('duration', 0)
-                    duration_str = str(duration_sec) if duration_sec else None
+                    duration_str = seconds_to_min(duration_sec) if duration_sec else None
                     
                     return {
                         'id': api_info.get('video_id', ''),
@@ -219,7 +225,7 @@ class YouTubeAPI:
     @capture_internal_err
     async def details(
         self, link: str, videoid: Union[str, bool, None] = None
-    ) -> Tuple[str, Optional[str], int, str, str]:
+    ) -> Tuple[str, Optional[str], int, str, str, Optional[str]]:
         prepared_link = self._prepare_link(link, videoid)
 
         try:
@@ -230,13 +236,18 @@ class YouTubeAPI:
             raise ValueError("Video not found", {"cause": str(search_err)}) from search_err
 
         dt = info.get("duration")
+        if isinstance(dt, int):
+            dt = seconds_to_min(dt)
         ds = int(time_to_seconds(dt)) if dt else 0
         thumb = (
             info.get("thumbnail")
             or info.get("thumbnails", [{}])[-1].get("url", "")
         ).split("?")[0]
+        
+        # Try to get stream_url from info if it came from NubCoder API
+        stream_url = info.get("url")
 
-        return info.get("title", ""), dt, ds, thumb, info.get("id", "")
+        return info.get("title", ""), dt, ds, thumb, info.get("id", ""), stream_url
 
     @capture_internal_err
     async def title(self, link: str, videoid: Union[str, bool, None] = None) -> str:
@@ -267,7 +278,7 @@ class YouTubeAPI:
                 if api_info and 'error' not in api_info and api_info.get('video_id') != 'N/A':
                     # Convert NubCoder API format to expected format
                     duration_sec = api_info.get('duration', 0)
-                    duration_str = str(duration_sec) if duration_sec else None
+                    duration_str = seconds_to_min(duration_sec) if duration_sec else None
                     
                     details = {
                         "title": api_info.get('title', ''),
@@ -275,6 +286,7 @@ class YouTubeAPI:
                         "vidid": api_info.get('video_id', ''),
                         "duration_min": duration_str,
                         "thumb": api_info.get('thumbnail', ''),
+                        "stream_url": api_info.get('url'), # PRE-FETCHED
                     }
                     return details, api_info.get('video_id', '')
             except Exception as e:
@@ -342,7 +354,7 @@ class YouTubeAPI:
             try:
                 api_info = nubcoder_get_info(link, max_results=1)
                 if api_info and 'error' not in api_info and api_info.get('video_id') != 'N/A':
-                    stream_url = api_info.get('url', '')
+                    stream_url = api_info.get('url') or api_info.get('stream_url', '')
                     if stream_url and stream_url != 'N/A':
                         return (1, stream_url)
             except Exception as e:
@@ -486,7 +498,7 @@ class YouTubeAPI:
                 try:
                     api_info = nubcoder_get_info(link, max_results=1)
                     if api_info and 'error' not in api_info and api_info.get('video_id') != 'N/A':
-                        stream_url = api_info.get('url', '')
+                        stream_url = api_info.get('url') or api_info.get('stream_url', '')
                         if stream_url and stream_url != 'N/A':
                             return stream_url, None
                 except Exception as e:

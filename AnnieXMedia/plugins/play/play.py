@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import asyncio
 import random
 import string
@@ -58,6 +58,17 @@ async def play_command(
     url,
     fplay,
 ):
+    # Start fetching details in parallel with sending the searching message
+    details_task = None
+    if url:
+        if await YouTube.exists(url):
+            if "playlist" not in url:
+                details_task = asyncio.create_task(YouTube.track(url))
+    elif len(message.command) >= 2:
+        query = message.text.split(None, 1)[1]
+        if "-v" not in query:
+            details_task = asyncio.create_task(YouTube.track(query))
+
     try:
         mystic = await message.reply_text(
             _["play_2"].format(channel) if channel else random.choice(AYU)
@@ -216,7 +227,10 @@ async def play_command(
 
             else:
                 try:
-                    details, track_id = await YouTube.track(url)
+                    if details_task:
+                        details, track_id = await details_task
+                    else:
+                        details, track_id = await YouTube.track(url)
                 except Exception as e:
                     return await mystic.edit_text(f"{_['play_3']}\nʀᴇᴀsᴏɴ: {e}")
 
@@ -408,7 +422,10 @@ async def play_command(
             query = query.replace("-v", "")
 
         try:
-            details, track_id = await YouTube.track(query)
+            if details_task:
+                details, track_id = await details_task
+            else:
+                details, track_id = await YouTube.track(query)
         except Exception as e:
             return await mystic.edit_text(f"{_['play_3']}\nʀᴇᴀsᴏɴ: {e}")
 

@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import time
 from pyrogram.types import InlineKeyboardButton
 from AnnieXMedia.utils.formatters import time_to_seconds
@@ -42,16 +42,18 @@ def generate_progress_bar(played_sec, duration_sec):
     else:
         percentage = min((played_sec / duration_sec) * 100, 100)
 
-    bar_length = 8
-    filled = int(round(bar_length * percentage / 70))
-    return "▰" * filled + "▱" * (bar_length - filled)
+    bar_length = 10
+    filled = int(round(bar_length * percentage / 100))
+    # Using the thick bar ━ and musical note ♬ from the request
+    bar = "━" * filled + "♬" + "━" * (bar_length - filled)
+    return bar
 
 
 def control_buttons(_, chat_id):
     return [[
         InlineKeyboardButton(text="▷", callback_data=f"stream_admin Resume|{chat_id}"),
-        InlineKeyboardButton(text="II", callback_data=f"stream_admin Pause|{chat_id}"),
-        InlineKeyboardButton(text="↻", callback_data=f"stream_admin Replay|{chat_id}"),
+        InlineKeyboardButton(text="||", callback_data=f"stream_admin Pause|{chat_id}"),
+        InlineKeyboardButton(text="↺", callback_data=f"stream_admin Replay|{chat_id}"),
         InlineKeyboardButton(text="‣‣I", callback_data=f"stream_admin Skip|{chat_id}"),
         InlineKeyboardButton(text="▢", callback_data=f"stream_admin Stop|{chat_id}"),
     ]]
@@ -63,10 +65,12 @@ def stream_markup_timer(_, chat_id, played, dur):
 
     played_sec = time_to_seconds(played)
     duration_sec = time_to_seconds(dur)
+    
     bar = generate_progress_bar(played_sec, duration_sec)
 
+    # Format exactly like: 02:38 | ━━♬━━ | 02:51
     return (
-        [[InlineKeyboardButton(text=f"{played} {bar} {dur}", callback_data="GetTimer")]] +
+        [[InlineKeyboardButton(text=f"{played} | {bar} | {dur}", callback_data="GetTimer")]] +
         control_buttons(_, chat_id) +
         [[InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close")]]
     )

@@ -4,7 +4,7 @@ import re
 from typing import List, Dict, Optional, Tuple
 from config import API_KEY, API_URL
 
-BASE_URL = API_URL or 'http://api.nubcoder.com'
+BASE_URL = API_URL or 'https://api.nubcoder.com'
 API_TOKEN = API_KEY
 
 

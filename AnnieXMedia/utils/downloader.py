@@ -154,8 +154,8 @@ async def api_download_audio(link: str) -> Optional[str]:
             if r.status == 200:
                 data = await r.json()
                 # Check if new API format succeeded
-                if 'url' in data and data.get('url') != 'N/A':
-                    stream_url = data.get('url')
+                if ('url' in data or 'stream_url' in data) and (data.get('url') != 'N/A' or data.get('stream_url') != 'N/A'):
+                    stream_url = data.get('url') or data.get('stream_url')
                     title = data.get('title', 'Unknown')
                     fmt = data.get('format', 'webm')
                     out_path = f"{DOWNLOAD_DIR}/{vid}.{fmt}"
@@ -206,8 +206,8 @@ async def api_download_video(link: str) -> Optional[str]:
             if r.status == 200:
                 data = await r.json()
                 # Check if new API format succeeded
-                if 'url' in data and data.get('url') != 'N/A':
-                    stream_url = data.get('url')
+                if ('url' in data or 'stream_url' in data) and (data.get('url') != 'N/A' or data.get('stream_url') != 'N/A'):
+                    stream_url = data.get('url') or data.get('stream_url')
                     title = data.get('title', 'Unknown')
                     fmt = data.get('format', 'mp4')
                     out_path = f"{DOWNLOAD_DIR}/{vid}.{fmt}"

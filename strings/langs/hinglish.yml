@@ -179,7 +179,7 @@ queue_6 : "<b>Duration:</b> Unknown duration stream\n\nPoori queue list dekhne k
 queue_7 : "\nPoori queue list dekhne ke liye niche button daba."
 queue_8 : "<b>{0} Player</b>\n\nStreaming: {1}\nStream Type: {2}\nRequested by: {3}\n{4}"
 
-stream_1 : "Started Streaming |\n\nTitle: <a href={0}>{1}</a>\nDuration: {2} minutes\nRequested by: {3}"
+stream_1: "<blockquote>❖ sᴛᴀʀᴛᴇᴅ sᴛʀᴇᴀᴍɪɴɢ ❞</blockquote>\n\n<blockquote>❍ ᴛɪᴛʟᴇ : <a href={0}>{1}</a> ❞\n❍ ᴅᴜʀᴀᴛɪᴏɴ : {2} ᴍɪɴᴜᴛᴇs\n❍ ʙʏ : {3}</blockquote>"
 stream_2 : "Started Streaming |\n\nStream Type: Live stream [url]\nRequested by: {0}"
 
 

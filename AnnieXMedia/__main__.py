@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import asyncio
 import importlib
 
@@ -13,6 +13,7 @@ from AnnieXMedia.plugins import ALL_MODULES
 from AnnieXMedia.utils.database import get_banned_users, get_gbanned
 from AnnieXMedia.utils.cookie_handler import fetch_and_store_cookies
 from AnnieXMedia.utils.commands import set_bot_commands
+from AnnieXMedia.utils.auto_tasks import auto_restart, auto_clear_cache
 from config import BANNED_USERS
 
 
@@ -54,6 +55,10 @@ async def init():
     
     # Set bot commands for Telegram menu
     await set_bot_commands()
+    
+    # Start auto-restart and auto-clear background tasks
+    asyncio.create_task(auto_restart())
+    asyncio.create_task(auto_clear_cache())
     
     for all_module in ALL_MODULES:
         importlib.import_module("AnnieXMedia.plugins" + all_module)

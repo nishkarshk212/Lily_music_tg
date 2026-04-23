@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import re
 from os import getenv
 from dotenv import load_dotenv
@@ -81,7 +81,7 @@ STICKERS = [
     "CAACAgUAAx0Cd6nKUAACASBl_rnalOle6g7qS-ry-aZ1ZpVEnwACgg8AAizLEFfI5wfykoCR4h4E",
     "CAACAgUAAx0Cd6nKUAACATJl_rsEJOsaaPSYGhU7bo7iEwL8AAPMDgACu2PYV8Vb8aT4_HUPHgQ",
 ]
-HELP_IMG_URL = "https://files.catbox.moe/yg2vky.jpg"
+HELP_IMG_URL = getenv("HELP_IMG_URL", START_IMAGES[0])
 # PING_VID_URL removed - using text-based ping response
 PLAYLIST_IMG_URL = "https://files.catbox.moe/yhaja5.jpg"
 STATS_VID_URL = "https://telegra.ph/file/e2ab6106ace2e95862372.mp4"

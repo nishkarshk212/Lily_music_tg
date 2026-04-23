@@ -1,4 +1,4 @@
-﻿# Authored By Certified Coders © 2025
+# Authored By Certified Coders © 2025
 import os
 from random import randint
 from typing import Union
@@ -50,7 +50,7 @@ async def stream(
             if int(count) == config.PLAYLIST_FETCH_LIMIT:
                 continue
             try:
-                title, duration_min, duration_sec, thumbnail, vidid = await YouTube.details(
+                title, duration_min, duration_sec, thumbnail, vidid, stream_url = await YouTube.details(
                     search, videoid=search
                 )
             except Exception:
@@ -65,7 +65,7 @@ async def stream(
                 await put_queue(
                     chat_id,
                     original_chat_id,
-                    f"vid_{vidid}",
+                    stream_url or f"vid_{vidid}",
                     title,
                     duration_min,
                     user_name,
@@ -80,12 +80,19 @@ async def stream(
             else:
                 if not forceplay:
                     db[chat_id] = []
-                try:
-                    file_path, direct = await YouTube.download(
-                        vidid, mystic, video=is_video, videoid=vidid
-                    )
-                except Exception:
-                    raise AssistantErr(_["play_14"])
+                
+                # Use stream_url if available for instant playback in playlists too!
+                if stream_url:
+                    file_path = stream_url
+                    direct = True
+                else:
+                    try:
+                        file_path, direct = await YouTube.download(
+                            vidid, mystic, video=is_video, videoid=vidid
+                        )
+                    except Exception:
+                        raise AssistantErr(_["play_14"])
+                
                 if not file_path:
                     raise AssistantErr(_["play_14"])
 
@@ -115,7 +122,7 @@ async def stream(
                     photo=img,
                     caption=_["stream_1"].format(
                         f"https://t.me/{app.username}?start=info_{vidid}",
-                        title[:23],
+                        title[:25],
                         duration_min,
                         user_name,
                     ),
@@ -151,107 +158,79 @@ async def stream(
         title = (result["title"]).title()
         duration_min = result["duration_min"]
         thumbnail = result["thumb"]
+        stream_url = result.get("stream_url") # Try pre-fetched URL
 
-        # OPTIMIZATION: Try to get direct stream URL for instant playback
-        file_path = None
-        direct = False
-        
-        try:
-            # First, try to get direct stream URL (faster - no download)
-            from AnnieXMedia.utils.downloader import extract_video_id, get_ytdlp_base_opts
-            import asyncio
-            import sys
-            import io
-            
-            loop = asyncio.get_event_loop()
-            vid = extract_video_id(link)
-            
-            def get_stream_url():
-                try:
-                    from yt_dlp import YoutubeDL
-                    opts = get_ytdlp_base_opts()
-                    opts["format"] = "bestaudio" if not is_video else "bestvideo[height<=?720]+bestaudio"
-                    opts["download"] = False  # Don't download, just get URL
-                    
-                    # Suppress error output
-                    old_stderr = sys.stderr
-                    sys.stderr = io.StringIO()
-                    
-                    try:
-                        with YoutubeDL(opts) as ydl:
-                            info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False)
-                            return info.get("url"), info
-                    finally:
-                        sys.stderr = old_stderr
-                except:
-                    return None, None
-            
-            stream_url, info = await loop.run_in_executor(None, get_stream_url)
-            
-            if stream_url:
-                # Use direct stream URL for instant playback
-                if await is_active_chat(chat_id):
-                    await put_queue(
-                        chat_id,
-                        original_chat_id,
-                        f"vid_{vidid}",
-                        title,
+        if not stream_url:
+            # If not pre-fetched, get it via API immediately (fastest way)
+            try:
+                from AnnieXMedia.utils.nubcoder_api import get_video_info
+                api_data = get_video_info(link)
+                if api_data and 'url' in api_data and api_data['url'] != 'N/A':
+                    stream_url = api_data['url']
+            except:
+                pass
+
+        if stream_url:
+            if await is_active_chat(chat_id):
+                await put_queue(
+                    chat_id,
+                    original_chat_id,
+                    stream_url,
+                    title,
+                    duration_min,
+                    user_name,
+                    vidid,
+                    user_id,
+                    "video" if is_video else "audio",
+                )
+                position = len(db.get(chat_id)) - 1
+                button = aq_markup(_, chat_id)
+                await app.send_message(
+                    chat_id=original_chat_id,
+                    text=_["queue_4"].format(position, title[:27], duration_min, user_name),
+                    reply_markup=InlineKeyboardMarkup(button),
+                )
+            else:
+                if not forceplay:
+                    db[chat_id] = []
+                # Join voice chat immediately with stream URL
+                await StreamController.join_call(
+                    chat_id,
+                    original_chat_id,
+                    stream_url,
+                    video=is_video,
+                    image=thumbnail,
+                )
+                await put_queue(
+                    chat_id,
+                    original_chat_id,
+                    stream_url,
+                    title,
+                    duration_min,
+                    user_name,
+                    vidid,
+                    user_id,
+                    "video" if is_video else "audio",
+                    forceplay=forceplay,
+                )
+                img = await get_thumb(vidid)
+                button = stream_markup(_, chat_id)
+                run = await app.send_photo(
+                    original_chat_id,
+                    photo=img,
+                    caption=_["stream_1"].format(
+                        f"https://t.me/{app.username}?start=info_{vidid}",
+                        title[:25],
                         duration_min,
                         user_name,
-                        vidid,
-                        user_id,
-                        "video" if is_video else "audio",
-                    )
-                    position = len(db.get(chat_id)) - 1
-                    button = aq_markup(_, chat_id)
-                    await app.send_message(
-                        chat_id=original_chat_id,
-                        text=_["queue_4"].format(position, title[:27], duration_min, user_name),
-                        reply_markup=InlineKeyboardMarkup(button),
-                    )
-                else:
-                    if not forceplay:
-                        db[chat_id] = []
-                    # Join voice chat immediately with stream URL (milliseconds!)
-                    await StreamController.join_call(
-                        chat_id,
-                        original_chat_id,
-                        stream_url,
-                        video=is_video,
-                        image=thumbnail,
-                    )
-                    await put_queue(
-                        chat_id,
-                        original_chat_id,
-                        stream_url,
-                        title,
-                        duration_min,
-                        user_name,
-                        vidid,
-                        user_id,
-                        "video" if is_video else "audio",
-                        forceplay=forceplay,
-                    )
-                    img = await get_thumb(vidid)
-                    button = stream_markup(_, chat_id)
-                    run = await app.send_photo(
-                        original_chat_id,
-                        photo=img,
-                        caption=_["stream_1"].format(
-                            f"https://t.me/{app.username}?start=info_{vidid}",
-                            title[:23],
-                            duration_min,
-                            user_name,
-                        ),
-                        reply_markup=InlineKeyboardMarkup(button),
-                    )
-                    db[chat_id][0]["mystic"] = run
-                    db[chat_id][0]["markup"] = "stream"
-                    return
-        except Exception as e:
-            pass  # Fallback to download method if streaming fails
+                    ),
+                    reply_markup=InlineKeyboardMarkup(button),
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
+            return
         
-        # FALLBACK: Download file (slower but reliable)
+        # FALLBACK: Download file (if API/streaming failed)
         try:
             file_path, direct = await YouTube.download(
                 vidid, mystic, video=is_video, videoid=vidid
@@ -309,7 +288,7 @@ async def stream(
                 photo=img,
                 caption=_["stream_1"].format(
                     f"https://t.me/{app.username}?start=info_{vidid}",
-                    title[:23],
+                    title[:25],
                     duration_min,
                     user_name,
                 ),
@@ -365,7 +344,7 @@ async def stream(
                 original_chat_id,
                 photo=config.SOUNCLOUD_IMG_URL,
                 caption=_["stream_1"].format(
-                    config.SUPPORT_CHAT, title[:23], duration_min, user_name
+                    config.SUPPORT_CHAT, title[:25], duration_min, user_name
                 ),
                 reply_markup=InlineKeyboardMarkup(button),
             )
@@ -421,7 +400,7 @@ async def stream(
             run = await app.send_photo(
                 original_chat_id,
                 photo=config.TELEGRAM_VIDEO_URL if is_video else config.TELEGRAM_AUDIO_URL,
-                caption=_["stream_1"].format(link, title[:23], duration_min, user_name),
+                caption=_["stream_1"].format(link, title[:25], duration_min, user_name),
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
@@ -488,7 +467,7 @@ async def stream(
                 photo=img,
                 caption=_["stream_1"].format(
                     f"https://t.me/{app.username}?start=info_{vidid}",
-                    title[:23],
+                    title[:25],
                     duration_min,
                     user_name,
                 ),
